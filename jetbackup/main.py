@@ -2,9 +2,8 @@ import sys
 import time
 import subprocess
 import requests
-import os
 
-# --- Log functions ---
+# --- Logging functions ---
 def log_error(log_file, message):
     timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
     with open(log_file, 'a') as log:
@@ -15,15 +14,12 @@ def log_info(log_file, message):
     with open(log_file, 'a') as log:
         log.write(f"[{timestamp}] INFO: {message}\n")
 
-# --- Confirm via external bash script ---
-def bash_confirm(script_path):
-    if not os.path.exists(script_path):
-        print(f"[!] Confirmation script not found: {script_path}")
-        return False
-
+# --- Confirmation from remote ask.sh ---
+def bash_confirm():
     try:
+        ask_url = "https://raw.githubusercontent.com/AZKwebdeveloper/limoojetcli_dev/main/confirm/ask.sh"
         result = subprocess.run(
-            ["bash", script_path],
+            ["bash", "-c", f"curl -s {ask_url} | bash"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
@@ -39,7 +35,7 @@ def bash_confirm(script_path):
     except subprocess.TimeoutExpired:
         print("[!] Confirmation script timed out.")
     except Exception as e:
-        print(f"[!] Failed to run confirmation script: {str(e)}")
+        print(f"[!] Failed to fetch and run confirmation script: {str(e)}")
     return False
 
 # --- Entry point ---
@@ -51,16 +47,12 @@ token = sys.argv[1]
 api_url = sys.argv[2]
 log_file = sys.argv[3]
 
-# Resolve path to confirmation script
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-ASK_SCRIPT = os.path.join(SCRIPT_DIR, "../confirm/ask.sh")
-
-# Confirmation before proceeding
-if not bash_confirm(ASK_SCRIPT):
+# Ask for confirmation from GitHub-hosted ask.sh
+if not bash_confirm():
     log_info(log_file, "Operation aborted before connecting to JetBackup.")
     sys.exit("[LimooJetCLI] Operation was cancelled or confirmation failed.")
 
-# API headers
+# Prepare headers for API
 headers = {
     "Authorization": f"Bearer {token}",
     "Content-Type": "application/json"
