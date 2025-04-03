@@ -18,7 +18,7 @@ def log_info(log_file, message):
     with open(log_file, 'a') as log:
         log.write(f"[{timestamp}] INFO: {message}\n")
 
-# --- Confirmation via remote script ---
+# --- Confirmation from remote script ---
 def bash_confirm():
     try:
         ask_url = "https://raw.githubusercontent.com/AZKwebdeveloper/limoojetcli_dev/main/confirm/ask.sh"
@@ -67,6 +67,8 @@ log_info(log_file, "Connecting to JetBackup API...")
 try:
     response = requests.get(f"{api_url}/api/v1/backup_jobs", headers=headers, verify=False)
     if response.status_code == 200:
+        log_info(log_file, "Successfully connected to JetBackup API.")
+        
         data = response.json()
         jobs = data.get("data", [])
         log_info(log_file, f"Fetched {len(jobs)} backup job(s).")
