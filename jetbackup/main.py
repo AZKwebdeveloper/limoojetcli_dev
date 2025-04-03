@@ -2,6 +2,9 @@ import sys
 import time
 import subprocess
 import requests
+import urllib3
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # --- Logging functions ---
 def log_error(log_file, message):
