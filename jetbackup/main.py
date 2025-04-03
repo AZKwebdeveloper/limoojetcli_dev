@@ -4,6 +4,7 @@ import subprocess
 import requests
 import urllib3
 
+# Disable SSL warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # --- Logging functions ---
@@ -67,9 +68,22 @@ try:
     response = requests.get(f"{api_url}/api/v1/backup_jobs", headers=headers, verify=False)
     if response.status_code == 200:
         data = response.json()
-        log_info(log_file, "Successfully fetched backup jobs.")
-        for job in data.get("data", []):
-            print(f"[+] Job: {job['name']} (ID: {job['id']})")
+        jobs = data.get("data", [])
+        log_info(log_file, f"Fetched {len(jobs)} backup job(s).")
+
+        if not jobs:
+            print("[!] No backup jobs found.")
+        else:
+            print("\n=== JetBackup Backup Jobs ===\n")
+            for job in jobs:
+                print(f"ID         : {job.get('id')}")
+                print(f"Name       : {job.get('name')}")
+                print(f"Type       : {job.get('type')}")
+                print(f"Enabled    : {'Yes' if job.get('enabled') else 'No'}")
+                print(f"Schedule   : {job.get('schedule', {}).get('cron', 'N/A')}")
+                print(f"Last Run   : {job.get('last_execution', {}).get('start_time', 'Never')}")
+                print("-" * 40)
+
     else:
         log_error(log_file, f"Failed to fetch jobs. Status: {response.status_code}, Body: {response.text}")
 except Exception as e:
