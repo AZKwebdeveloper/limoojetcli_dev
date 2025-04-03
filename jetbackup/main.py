@@ -1,108 +1,67 @@
-import sys
+#!/usr/bin/env python3
+import os
 import subprocess
-import time
+import sys
+from datetime import datetime
 
-# --- Logging functions ---
-def log_error(log_file, message):
-    timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
-    with open(log_file, 'a') as log:
-        log.write(f"[{timestamp}] ERROR: {message}\n")
+LOG_DIR = "/tmp/limoojetcli/logs/"
+LOG_FILE = os.path.join(LOG_DIR, "limoojet.log")
 
-def log_info(log_file, message):
-    timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
-    with open(log_file, 'a') as log:
-        log.write(f"[{timestamp}] INFO: {message}\n")
 
-# --- Confirmation from remote script ---
-def bash_confirm():
+def log(message):
+    os.makedirs(LOG_DIR, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    with open(LOG_FILE, "a") as log_file:
+        log_file.write(f"[{timestamp}] {message}\n")
+    print(message)
+
+
+def list_backup_jobs():
+    log("Listing backup jobs...")
     try:
-        ask_url = "https://raw.githubusercontent.com/AZKwebdeveloper/limoojetcli_dev/main/confirm/ask.sh"
         result = subprocess.run(
-            ["bash", "-c", f"curl -s {ask_url} | bash"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            timeout=20
+            ["jetbackup5api", "backup", "-F", "listBackupJobs"],
+            capture_output=True, text=True, check=True
         )
-        answer = result.stdout.strip().lower()
-        if answer == "yes":
-            return True
-        elif answer == "no":
-            print("[!] Operation cancelled by user choice.")
-        else:
-            print(f"[!] Invalid confirmation response: '{answer}'")
-    except subprocess.TimeoutExpired:
-        print("[!] Confirmation script timed out.")
-    except Exception as e:
-        print(f"[!] Failed to fetch and run confirmation script: {str(e)}")
-    return False
+        log("Backup jobs retrieved successfully.")
+        print(result.stdout)
+    except subprocess.CalledProcessError as e:
+        log(f"Error listing backup jobs: {e.stderr}")
 
-# --- Run jetbackup5api command ---
-def run_jetbackup5api(command, parameters=""):
+
+def run_backup_job(job_id):
+    log(f"Attempting to run backup job with ID: {job_id}")
+    confirm = input(f"Are you sure you want to run backup job ID {job_id}? [y/N]: ").strip().lower()
+    if confirm != 'y':
+        log("Operation canceled by user.")
+        return
     try:
-        # Prepare the command
-        cmd = f"jetbackup5api {command} {parameters}"
-        print(f"[INFO] Running: {cmd}")
-        
         result = subprocess.run(
-            cmd, 
-            shell=True, 
-            stdout=subprocess.PIPE, 
-            stderr=subprocess.PIPE, 
-            text=True
+            ["jetbackup5api", "backup", "-F", "runBackupJobManually", "-D", f"job_id={job_id}"],
+            capture_output=True, text=True, check=True
         )
+        log(f"Backup job {job_id} started successfully.")
+        print(result.stdout)
+    except subprocess.CalledProcessError as e:
+        log(f"Error running backup job {job_id}: {e.stderr}")
 
-        # Output the result
-        if result.returncode == 0:
-            return result.stdout.strip()
-        else:
-            log_error(log_file, result.stderr.strip())
-            print(f"[ERROR] {result.stderr.strip()}")
-            return None
-    except Exception as e:
-        log_error(log_file, f"Error running command {command}: {str(e)}")
-        return None
 
-# --- Entry point ---
-if len(sys.argv) != 3:
-    print("Usage: python3 main.py <API_URL> <LOG_FILE>")
-    sys.exit(1)
+def main():
+    if len(sys.argv) < 2:
+        print("Usage:")
+        print("  python3 main.py list")
+        print("  python3 main.py run <job_id>")
+        return
 
-api_url = sys.argv[1]
-log_file = sys.argv[2]
+    command = sys.argv[1]
 
-# Ask for confirmation before continuing
-if not bash_confirm():
-    log_info(log_file, "Operation aborted before connecting to JetBackup.")
-    sys.exit("[LimooJetCLI] Operation was cancelled or confirmation failed.")
+    if command == "list":
+        list_backup_jobs()
+    elif command == "run" and len(sys.argv) == 3:
+        run_backup_job(sys.argv[2])
+    else:
+        print("Invalid command or missing job_id.")
 
-# Log Info
-log_info(log_file, "Connecting to JetBackup API...")
 
-# 1. List Backup Jobs
-backup_jobs = run_jetbackup5api("backup -F listBackupJobs")
-if backup_jobs:
-    print("\n=== Backup Jobs List ===\n")
-    print(backup_jobs)
-    log_info(log_file, "Successfully fetched list of backup jobs.")
-
-# 2. Get Specific Backup Job Details (Example: Job ID = 1)
-job_details = run_jetbackup5api("backup -F getBackupJob", "-D job_id=1")
-if job_details:
-    print("\n=== Backup Job Details ===\n")
-    print(job_details)
-    log_info(log_file, "Successfully fetched backup job details.")
-
-# 3. Run a Backup Job Manually (Example: Job ID = 1)
-run_job = run_jetbackup5api("backup -F runBackupJobManually", "-D job_id=1")
-if run_job:
-    print("\n=== Running Backup Job Manually ===\n")
-    print(run_job)
-    log_info(log_file, "Successfully ran backup job manually.")
-
-# 4. Delete a Backup Job (Example: Job ID = 1)
-delete_job = run_jetbackup5api("backup -F deleteBackupJob", "-D job_id=1")
-if delete_job:
-    print("\n=== Backup Job Deleted ===\n")
-    print(delete_job)
-    log_info(log_file, "Successfully deleted backup job.")
+if __name__ == "__main__":
+    main()
