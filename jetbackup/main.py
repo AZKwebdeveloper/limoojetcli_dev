@@ -2,6 +2,7 @@ import sys
 import time
 import subprocess
 import requests
+import os
 
 # --- Log functions ---
 def log_error(log_file, message):
@@ -14,19 +15,32 @@ def log_info(log_file, message):
     with open(log_file, 'a') as log:
         log.write(f"[{timestamp}] INFO: {message}\n")
 
-# --- Confirm via bash script ---
+# --- Confirm via external bash script ---
 def bash_confirm(script_path):
+    if not os.path.exists(script_path):
+        print(f"[!] Confirmation script not found: {script_path}")
+        return False
+
     try:
         result = subprocess.run(
             ["bash", script_path],
             stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            text=True
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=20
         )
-        return result.stdout.strip().lower() == "yes"
+        answer = result.stdout.strip().lower()
+        if answer == "yes":
+            return True
+        elif answer == "no":
+            print("[!] Operation cancelled by user choice.")
+        else:
+            print(f"[!] Invalid confirmation response: '{answer}'")
+    except subprocess.TimeoutExpired:
+        print("[!] Confirmation script timed out.")
     except Exception as e:
-        print(f"[!] Confirmation failed: {str(e)}")
-        return False
+        print(f"[!] Failed to run confirmation script: {str(e)}")
+    return False
 
 # --- Entry point ---
 if len(sys.argv) != 4:
@@ -37,16 +51,14 @@ token = sys.argv[1]
 api_url = sys.argv[2]
 log_file = sys.argv[3]
 
-# Set path to ask.sh (relative to script directory)
-import os
+# Resolve path to confirmation script
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 ASK_SCRIPT = os.path.join(SCRIPT_DIR, "../confirm/ask.sh")
 
 # Confirmation before proceeding
 if not bash_confirm(ASK_SCRIPT):
-    print("Action cancelled by user.")
-    log_info(log_file, "User aborted the operation.")
-    sys.exit(1)
+    log_info(log_file, "Operation aborted before connecting to JetBackup.")
+    sys.exit("[LimooJetCLI] Operation was cancelled or confirmation failed.")
 
 # API headers
 headers = {
