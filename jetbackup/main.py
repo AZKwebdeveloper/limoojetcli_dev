@@ -14,7 +14,7 @@ def log_info(log_file, message):
     with open(log_file, 'a') as log:
         log.write(f"[{timestamp}] INFO: {message}\n")
 
-# --- Confirmation from remote ask.sh ---
+# --- Confirmation via remote script ---
 def bash_confirm():
     try:
         ask_url = "https://raw.githubusercontent.com/AZKwebdeveloper/limoojetcli_dev/main/confirm/ask.sh"
@@ -47,12 +47,12 @@ token = sys.argv[1]
 api_url = sys.argv[2]
 log_file = sys.argv[3]
 
-# Ask for confirmation from GitHub-hosted ask.sh
+# Ask for confirmation before continuing
 if not bash_confirm():
     log_info(log_file, "Operation aborted before connecting to JetBackup.")
     sys.exit("[LimooJetCLI] Operation was cancelled or confirmation failed.")
 
-# Prepare headers for API
+# Prepare headers
 headers = {
     "Authorization": f"Bearer {token}",
     "Content-Type": "application/json"
@@ -61,7 +61,7 @@ headers = {
 log_info(log_file, "Connecting to JetBackup API...")
 
 try:
-    response = requests.get(f"{api_url}/api/v1/backup_jobs", headers=headers)
+    response = requests.get(f"{api_url}/api/v1/backup_jobs", headers=headers, verify=False)
     if response.status_code == 200:
         data = response.json()
         log_info(log_file, "Successfully fetched backup jobs.")
