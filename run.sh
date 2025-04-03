@@ -19,7 +19,7 @@ fi
 # 2. Try to fetch JetBackup API Token and URL from known paths
 # Example paths: these may vary depending on JetBackup installation
 
-CONFIG_FILE="/usr/local/jetapps/etc/jetbackup5/config.json"
+CONFIG_FILE="/usr/local/jetapps/etc/jetbackup5/config.inc"
 
 if [[ -f "$CONFIG_FILE" ]]; then
     JB_API_URL=$(grep -oP '(?<="PanelAPIURL": ")[^"]+' "$CONFIG_FILE")
