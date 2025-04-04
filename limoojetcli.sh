@@ -11,7 +11,8 @@ log_message() {
 
 list_backup_jobs() {
     log_message "Fetching backup jobs from JetBackup API..."
-    jetbackup5api -F listBackupJobs >> $LOG_FILE
+    jetbackup5api -F listBackupJobs | jq '.[] | {id: ._id, name: .name}' >> $LOG_FILE
+    jetbackup5api -F listBackupJobs | jq '.[] | {id: ._id, name: .name}'
 }
 
 run_backup_job() {
